@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshCollider))]
 public class MarchingCubes : MonoBehaviour {
 	public int resolution;
 	public float threshold;
@@ -18,11 +21,11 @@ public class MarchingCubes : MonoBehaviour {
 	
 	private Mesh _mesh;
 	private MeshFilter _meshFilter;
-	private MeshRenderer _meshRenderer;
+	private MeshCollider _meshCollider;
 	
 	private void Awake() {
 		_meshFilter = GetComponent<MeshFilter>();
-		_meshRenderer = GetComponent<MeshRenderer>();
+		_meshCollider = GetComponent<MeshCollider>();
 		_mesh = new Mesh();
 		_meshFilter.mesh = _mesh;
 	}
@@ -78,9 +81,12 @@ public class MarchingCubes : MonoBehaviour {
 			}	
 		}
 		
+		_mesh.triangles = Array.Empty<int>();
 		_mesh.vertices = _verticies.ToArray();
 		_mesh.triangles = _triangles.ToArray();
 		_mesh.RecalculateNormals();
+		
+		_meshCollider.sharedMesh = _mesh;
 	}
 	
 	private Vector3 GetVertexPosition(int x, int y, int z, int edge) {
@@ -117,5 +123,35 @@ public class MarchingCubes : MonoBehaviour {
 		}
 
 		return value;
+	}
+	
+	private void PaintAllInRange(int x, int y, int z, int range, float value) {
+		// paint all voxels in range, with value diminishing with distance
+		for (int i = -range; i <= range; i++) {
+			for (int j = -range; j <= range; j++) {
+				for (int k = -range; k <= range; k++) {
+					if (x + i >= 0 && x + i < resolution && y + j >= 0 && y + j < resolution && z + k >= 0 && z + k < resolution) {
+						voxels[x + i][y + j][z + k] += value / (Mathf.Abs(i) + Mathf.Abs(j) + Mathf.Abs(k) + 1);
+						voxels[x + i][y + j][z + k] = Mathf.Clamp(voxels[x + i][y + j][z + k], 0, 1);
+					}
+				}
+			}
+		}
+		
+		MarchCubes();
+	}
+
+	public void PaintAddVoxels(RaycastHit hit) {
+		int x = (int) hit.point.x;
+		int y = (int) hit.point.y;
+		int z = (int) hit.point.z;
+		PaintAllInRange(x, y, z, 2, 0.002f);
+	}
+	
+	public void PaintRemoveVoxels(RaycastHit hit) {
+		int x = (int) hit.point.x;
+		int y = (int) hit.point.y;
+		int z = (int) hit.point.z;
+		PaintAllInRange(x, y, z, 2, -0.002f);
 	}
 }
