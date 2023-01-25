@@ -2,12 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class VoxelGrid : MonoBehaviour {
+	[HideInInspector]
 	public int resolution = 16;
+	[HideInInspector]
 	public float threshold = 0.5f;
 
 	// 0-1 range, 0 is empty, 1 is full
+	[HideInInspector]
 	public float[][][] voxels;
 	
 	[SerializeField]
@@ -15,8 +19,9 @@ public class VoxelGrid : MonoBehaviour {
 	[SerializeField]
 	private Material _material;
 
+	[FormerlySerializedAs("scale")]
 	[SerializeField, Range(0.01f, 0.3f)]
-	private float scale = 0.1f;
+	private float voxelScale = 0.1f;
 	
 	[SerializeField]
 	private Gradient _gradient = new Gradient();
@@ -27,23 +32,12 @@ public class VoxelGrid : MonoBehaviour {
 	private static readonly int matricesId = Shader.PropertyToID("_Matrices");
 	private static MaterialPropertyBlock _propertyBlock;
 	
-	private void OnEnable() {
+	public void Initialize() {
 		const int stride = 16 * 4;
 		int length = resolution * resolution * resolution;
 		_matricesBuffer = new ComputeBuffer(length, stride);
 		_matrices = new Matrix4x4[length];
-		
-		voxels = new float[resolution][][];
-		for (int x = 0; x < resolution; x++) {
-			voxels[x] = new float[resolution][];
-			for (int y = 0; y < resolution; y++) {
-				voxels[x][y] = new float[resolution];
-				for (int z = 0; z < resolution; z++) {
-					voxels[x][y][z] = Vector3.Distance(new Vector3(x, y, z), new Vector3(resolution/2f - 0.5f, resolution/2f - 0.5f, resolution/2f - 0.5f)) / resolution;
-				}
-			}
-		}
-		
+
 		_propertyBlock ??= new MaterialPropertyBlock();
 	}
 
@@ -54,10 +48,12 @@ public class VoxelGrid : MonoBehaviour {
 	}
 
 	private void Update() {
+		if (_matricesBuffer == null) return;
+		
 		for (int x = 0; x < resolution; x++) {
 			for (int y = 0; y < resolution; y++) {
 				for (int z = 0; z < resolution; z++) {
-					_matrices[x + y * resolution + z * resolution * resolution] = Matrix4x4.TRS(GetVoxelPosition(x, y, z), Quaternion.identity, Vector3.one * scale);
+					_matrices[x + y * resolution + z * resolution * resolution] = Matrix4x4.TRS(GetVoxelPosition(x, y, z), Quaternion.identity, Vector3.one * voxelScale);
 					Vector4 color;
 					if (voxels[x][y][z] < threshold) {
 						color = _gradient.Evaluate(0);
@@ -80,7 +76,7 @@ public class VoxelGrid : MonoBehaviour {
 	private void OnValidate() {
 		if (_matricesBuffer != null && enabled) {
 			OnDisable();
-			OnEnable();
+			Initialize();
 		}
 	}
 
