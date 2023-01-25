@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// TODO: Replace this whole class, create a proper gravity system
+
 public class Player : MonoBehaviour {
 	public float speed = 6f;
 	public float sprintSpeed = 20f;

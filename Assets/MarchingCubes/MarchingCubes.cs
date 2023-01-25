@@ -10,12 +10,11 @@ using UnityEngine;
 public class MarchingCubes : MonoBehaviour {
 	public int resolution;
 	public float threshold;
-
-	[SerializeField]
-	private VoxelGrid _voxelGrid;
 	
-	private float[][][] voxels;
+	public float[][][] voxels;
 
+	public int3 offset;
+	
 	private List<Vector3> _verticies;
 	private List<int> _triangles;
 	
@@ -23,42 +22,23 @@ public class MarchingCubes : MonoBehaviour {
 	private MeshFilter _meshFilter;
 	private MeshCollider _meshCollider;
 	
-	private void Awake() {
+	private void Start() {
 		_meshFilter = GetComponent<MeshFilter>();
 		_meshCollider = GetComponent<MeshCollider>();
 		_mesh = new Mesh();
 		_meshFilter.mesh = _mesh;
-	}
-
-	private void OnEnable() {
-		voxels = new float[resolution][][];
-		for (int x = 0; x < resolution; x++) {
-			voxels[x] = new float[resolution][];
-			for (int y = 0; y < resolution; y++) {
-				voxels[x][y] = new float[resolution];
-				for (int z = 0; z < resolution; z++) {
-					voxels[x][y][z] = Vector3.Distance(new Vector3(x, y, z), new Vector3(resolution/2f - 0.5f, resolution/2f - 0.5f, resolution/2f - 0.5f)) / (resolution-1);
-				}
-			}
-		}
-		
-		// pass data to voxelGrid
-		_voxelGrid.voxels = voxels;
-		_voxelGrid.resolution = resolution;
-		_voxelGrid.threshold = threshold;
-		
-		_voxelGrid.Initialize();
 		
 		MarchCubes();
 	}
+	
 
 	private void MarchCubes() {
 		_verticies = new List<Vector3>();
 		_triangles = new List<int>();
 		
-		for (int x = 0; x < resolution - 1; x++) {
-			for (int y = 0; y < resolution - 1; y++) {
-				for (int z = 0; z < resolution - 1; z++) {
+		for (int x = Mathf.Max(offset.x - 1, 0); x < resolution + offset.x - 1; x++) {
+			for (int y = Mathf.Max(offset.y - 1, 0); y < resolution + offset.y - 1; y++) {
+				for (int z = Mathf.Max(offset.z - 1, 0); z < resolution + offset.z - 1; z++) {
 					int value = GetSquareValue(x, y, z);
 					var edges = MarchingData.TriangleTable[value];
 					for (int i = 0; i < edges.Length; i += 3) {
@@ -76,7 +56,6 @@ public class MarchingCubes : MonoBehaviour {
 						_triangles.Add(count + 1);
 						_triangles.Add(count + 2);
 					}
-
 				}
 			}	
 		}
@@ -130,7 +109,7 @@ public class MarchingCubes : MonoBehaviour {
 		for (int i = -range; i <= range; i++) {
 			for (int j = -range; j <= range; j++) {
 				for (int k = -range; k <= range; k++) {
-					if (x + i >= 0 && x + i < resolution && y + j >= 0 && y + j < resolution && z + k >= 0 && z + k < resolution) {
+					if (x + i >= offset.x && x + i < resolution + offset.x && y + j >= offset.y && y + j < resolution + offset.y && z + k >= offset.z && z + k < resolution + offset.z) {
 						voxels[x + i][y + j][z + k] += value / (Mathf.Abs(i) + Mathf.Abs(j) + Mathf.Abs(k) + 1);
 						voxels[x + i][y + j][z + k] = Mathf.Clamp(voxels[x + i][y + j][z + k], 0, 1);
 					}
@@ -142,16 +121,18 @@ public class MarchingCubes : MonoBehaviour {
 	}
 
 	public void PaintAddVoxels(RaycastHit hit) {
-		int x = (int) hit.point.x;
-		int y = (int) hit.point.y;
-		int z = (int) hit.point.z;
+		Vector3 point = transform.InverseTransformPoint(hit.point);
+		int x = (int) (point.x);
+		int y = (int) (point.y);
+		int z = (int) (point.z);
 		PaintAllInRange(x, y, z, 2, 0.002f);
 	}
 	
 	public void PaintRemoveVoxels(RaycastHit hit) {
-		int x = (int) hit.point.x;
-		int y = (int) hit.point.y;
-		int z = (int) hit.point.z;
+		Vector3 point = transform.InverseTransformPoint(hit.point);
+		int x = (int) (point.x);
+		int y = (int) (point.y);
+		int z = (int) (point.z);
 		PaintAllInRange(x, y, z, 2, -0.002f);
 	}
 }
